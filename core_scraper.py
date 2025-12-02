@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 # =============== Const ===============
 SEARCH_DELAY_SECONDS = 3
 TIMEOUT = 60
-SEMANTIC_SCHOLAR_API_KEY = "v3qmwZ0rHH7JsdzxzCHAD6xsjLtgDbP24PRuU4sY" 
+SEMANTIC_SCHOLAR_API_KEY = "<YOUR_API_KEY>" 
 USER_AGENT = "arxiv-Lab01-scraper/1.0"
 HTTP_TIMEOUT = 300
 # =====================================
@@ -228,4 +228,5 @@ def run_scraper(yymm, start_id, end_id, output_folder, celery_task=None):
         
         time.sleep(1) # Delay
     
+
     session.close()
