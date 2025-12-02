@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arxiv Scraper Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; padding-top: 50px; }
+        .progress { height: 25px; display: none; margin-top: 20px;}
+        #downloadBtn { display: none; margin-top: 20px;}
+        #statusText { margin-top: 10px; font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white text-center">
+                    <h4>Công cụ tải dữ liệu Arxiv</h4>
+                </div>
+                <div class="card-body">
+                    <form id="scrapeForm">
+                        <div class="mb-3">
+                            <label class="form-label">Năm-Tháng (YYMM)</label>
+                            <input type="text" class="form-control" id="yymm" value="2503" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">ID Bắt đầu</label>
+                                <input type="number" class="form-control" id="start" value="23337" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">ID Kết thúc</label>
+                                <input type="number" class="form-control" id="end" value="23340" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="startBtn">Bắt đầu Task</button>
+                    </form>
+
+                    <div class="progress" id="progressContainer">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                             role="progressbar" style="width: 0%" id="progressBar">0%</div>
+                    </div>
+                    <div id="statusText" class="text-center"></div>
+
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-outline-primary" id="downloadBtn">⬇️ Tải file ZIP kết quả</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('scrapeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Reset UI
+        const startBtn = document.getElementById('startBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+        const statusText = document.getElementById('statusText');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        startBtn.disabled = true;
+        downloadBtn.style.display = 'none';
+        progressContainer.style.display = 'flex';
+        progressBar.style.width = '0%';
+        progressBar.innerText = '0%';
+        statusText.innerText = 'Đang khởi tạo task...';
+
+        // Get data from form
+        const formData = new FormData();
+        formData.append('yymm', document.getElementById('yymm').value);
+        formData.append('start', document.getElementById('start').value);
+        formData.append('end', document.getElementById('end').value);
+
+        // 1. Send request to start task
+        const response = await fetch('/start-scrape', { method: 'POST', body: formData });
+        const data = await response.json();
+        const taskId = data.task_id;
+
+        // 2. Polling (Continuously check status every 2 seconds)
+        const pollInterval = setInterval(async () => {
+            const res = await fetch(`/status/${taskId}`);
+            const statusData = await res.json();
+
+            // Update progress bar
+            const percent = statusData.percent;
+            progressBar.style.width = percent + '%';
+            progressBar.innerText = percent + '%';
+            statusText.innerText = statusData.status;
+
+            // Check if done or error
+            if (statusData.state === 'SUCCESS') {
+                clearInterval(pollInterval);
+                startBtn.disabled = false;
+                downloadBtn.href = `/download-file/${statusData.filename}`;
+                downloadBtn.style.display = 'block';
+                progressBar.classList.remove('progress-bar-animated');
+                statusText.innerText = "Hoàn tất! Hãy tải file về.";
+            } else if (statusData.state === 'FAILURE' || statusData.state === 'REVOKED') {
+                clearInterval(pollInterval);
+                startBtn.disabled = false;
+                statusText.innerText = "Lỗi: " + statusData.status;
+                progressBar.classList.add('bg-danger');
+            }
+        }, 2000); // Poll every 2 seconds 
+    });
+</script>
+
+</body>
+</html>
